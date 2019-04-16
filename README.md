@@ -1,5 +1,5 @@
 # pydiary
-MatLab style commands logger for the Python interpreter
+MatLab style commands logger for the Python interpreter, with added features.
 
 ## Usage
 The package exports a single class.

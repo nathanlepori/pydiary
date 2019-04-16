@@ -1,2 +1,13 @@
+# JetBrain project files
 .idea/
+
+# Release files
+build/
+dist/
+*.egg-info
+
+# Not needed, just debug
 debug-init.py
+
+# Leftover default diary
+diary.py
