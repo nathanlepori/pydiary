@@ -4,14 +4,7 @@ import warnings
 import os
 import traceback
 
-__version__ = '1.0.2'
-
-
-class DiarySkipLoggingException(Exception):
-    """
-    Tagging exception used to signal the diary prompt to not log the function it is raised in.
-    """
-    pass
+__version__ = '1.0.5'
 
 
 class Diary:
@@ -19,10 +12,6 @@ class Diary:
     MatLab style commands logger for the Python interpreter, with added feature. Construct a new instance to enable
     logging and call diary.off() to disable it.
     """
-
-    # Default values for parameters
-    _default_filename = 'diary.py'
-    _buffered_default = True
 
     _diary_on = False
     _filename = None
@@ -32,7 +21,10 @@ class Diary:
     # Stream where commands are written. Can be either a file or a StringIO depending on the mode used
     _cmd_stream = None
 
-    def __init__(self, filename=_default_filename, buffered=_buffered_default):
+    # This flag is enable when a function wants to skip logging itself
+    _skip_logging = False
+
+    def __init__(self, filename='diary.py', buffered=True):
         """
         Initializes and starts a new Diary, with the given or default filename.
 
@@ -68,6 +60,9 @@ class Diary:
         diary = self
 
         while True:
+            # Reset skip logging flag
+            self._skip_logging = False
+
             self._print_command_line()
 
             cmd = None
@@ -84,9 +79,6 @@ class Diary:
             except KeyboardInterrupt:
                 print('\nKeyboardInterrupt')
                 continue
-            except DiarySkipLoggingException:
-                # Requested to skip logging
-                continue
             except Exception:
                 traceback.print_exc()
                 continue
@@ -94,12 +86,15 @@ class Diary:
             if not self._diary_on:
                 break
 
-            self._cmd_stream.write(cmd + '\n')
+            if not self._skip_logging:
+                self._cmd_stream.write(cmd + '\n')
 
     def flush(self) -> None:
         """
         Writes commands stored in the buffer to the diary file. This feature is only supported in buffered mode.
         """
+        self._skip_logging = True
+
         if not self._diary_on:
             warnings.warn('Diary is off. Cannot flush commands.')
 
@@ -114,15 +109,14 @@ class Diary:
                 self._cmd_stream.truncate(0)
         else:
             warnings.warn('Not in buffered mode: commands already written to file.')
-        # If still logging, skip logging the flush function itself
-        if self._diary_on:
-            raise DiarySkipLoggingException
 
     def discard(self) -> None:
         """
         Discards all commands stored in the buffer. These are all commands typed after the last diary.flush() or
         diary.on() call. This feature is only supported in buffered mode.
         """
+        self._skip_logging = True
+
         if not self._diary_on:
             warnings.warn('Diary is off. Cannot discard commands.')
 
@@ -132,7 +126,6 @@ class Diary:
             self._cmd_stream.truncate(0)
         else:
             warnings.warn('Not in buffered mode: feature not supported.')
-        raise DiarySkipLoggingException
 
     def on(self) -> None:
         """
@@ -158,7 +151,7 @@ class Diary:
         if not self._diary_on:
             return
 
-        self._diary_on = False
         if self._buffered:
             self.flush()
         self._cmd_stream.close()
+        self._diary_on = False
