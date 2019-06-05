@@ -4,7 +4,7 @@ import warnings
 import os
 import traceback
 
-__version__ = '1.0.5'
+__version__ = '1.0.6'
 
 
 class Diary:
@@ -97,9 +97,10 @@ class Diary:
 
         if not self._diary_on:
             warnings.warn('Diary is off. Cannot flush commands.')
+            return
 
         if self._buffered:
-            with open(self._filename, 'a+') as f:
+            with open(self._filename, 'a') as f:
                 # Go to beginning of stream
                 self._cmd_stream.seek(0)
                 # Copy content of buffer stream to actual file
@@ -119,6 +120,7 @@ class Diary:
 
         if not self._diary_on:
             warnings.warn('Diary is off. Cannot discard commands.')
+            return
 
         if self._buffered:
             # Empty the stream
@@ -127,18 +129,39 @@ class Diary:
         else:
             warnings.warn('Not in buffered mode: feature not supported.')
 
+    def clear(self, discard=True):
+        """
+        Clears all commands currently written to the diary.
+        """
+        with open(self._filename, 'w') as f:    # File gets truncated when opening it in 'w' mode
+            pass
+
+        if discard and self._diary_on and self._buffered:
+            self.discard()
+
+    def execute(self) -> None:
+        """
+        Executes this diary. This function also flushes any commands not yet written to the file.
+        """
+        if self._buffered and self._diary_on:
+            self.flush()
+
+        with open(self._filename, 'r') as f:
+            exec(f.read())
+
     def on(self) -> None:
         """
         Turns this Diary instance on, logging any command typed afterwards. Call diary.off() to disable logging.
         """
         if self._diary_on:
+            warnings.warn('Diary is already on.')
             return
 
         # Open stream depending on whether buffered mode is active or not
         if self._buffered:
             self._cmd_stream = io.StringIO()
         else:
-            self._cmd_stream = open(self._filename, 'a+')
+            self._cmd_stream = open(self._filename, 'a')
 
         self._diary_on = True
         self._start_prompt()
@@ -149,6 +172,7 @@ class Diary:
         long as the Diary is enabled, diary.off() is an alias for self.off().
         """
         if not self._diary_on:
+            warnings.warn('Diary is already off.')
             return
 
         if self._buffered:
